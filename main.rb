@@ -1,7 +1,7 @@
 require 'faraday'
 require 'nokogiri'
 require 'ferrum'
-
+require 'debug'
 
 class Agent
   class << self
@@ -15,9 +15,13 @@ class Agent
     private
 
     def make_request
-      browser = Ferrum::Browser.new(headless: true, timeout: 30, window_size: [1440, 900], browser_options: { 'no-sandbox': nil, 'disable-dev-shm-usage': nil })
+      browser = Ferrum::Browser.new(headless: false, timeout: 30, window_size: [1441, 944], browser_options: { 'no-sandbox': nil, 'disable-dev-shm-usage': nil })
       browser.go_to $url
-      sleep 10
+      sleep 5
+      browser.at_xpath('//label[contains(text(), "Body Geometry Pro Fit")]').click
+      sleep 3
+      browser.at_xpath('//market-button[contains(text(), "Book")]').click
+      sleep 3
       page_source = browser.body
       browser.quit
       page_source
