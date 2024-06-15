@@ -1,18 +1,10 @@
 require 'faraday'
-require 'json'
 require 'nokogiri'
+require 'ferrum'
 
 
 class Agent
   class << self
-    # ftr this would be a browserless obj w/e lmao
-    def setup
-      Faraday.get('http://browserless:3000/metrics')
-    rescue Faraday::ConnectionFailed
-      $global_fails += 1 && sleep 2
-      $global_fails > 10 ? exit : retry
-    end
-
     def check_square
       make_request
         .yield_self { parse_response _1 }
@@ -23,22 +15,26 @@ class Agent
     private
 
     def make_request
-      Faraday.post "http://browserless:3000/content", { url: $url, waitUntil: 'networkidle2' }.to_json, 'Content-Type' => 'application/json'
+      browser = Ferrum::Browser.new(headless: true, timeout: 30, window_size: [1440, 900], browser_options: { 'no-sandbox': nil, 'disable-dev-shm-usage': nil })
+      browser.go_to $url
+      sleep 10
+      page_source = browser.body
+      browser.quit
+      page_source
     end
 
     def parse_response(response)
-      JSON.parse(response.body)['data']
+      Nokogiri::HTML(response)
     end
 
     def check_availability(page_source)
-      html_doc = Nokogiri::HTML(page_source)
       # btw doing this the convoluted way so I can add more info to the message at a later time
-      html_doc.xpath('//div[contains(text(), "No availability within the next 30 days")]')
+      page_source.xpath('//div[contains(text(), "No availability within the next 30 days")]')
     end
 
     def notify_or_exit(new_content)
       if new_content.empty?
-        Faraday.post(ntfy_url, message: "Paragon Fit Studio has new Availability!!", { 'Content-Type' => 'application/json', 'Title': 'Paragon Fit Studio Availability', 'Tags': 'partying_face'})
+        Faraday.post("https://ntfy.sh/paragon", "Paragon Fit Studio has new Availability!! or something went wrong lmao.", content_type: 'application/json', title: 'Paragon Fit Studio Availability', tags: 'partying_face')
       end
 
       exit
@@ -49,6 +45,5 @@ end
 if __FILE__ == $0
   $global_fails = 0
   $url = 'https://book.squareup.com/appointments/g25dw5kf6jsny0/location/7ZQQFNETS189K/availability'
-  $ntfy_url = 'https://ntfy.sh/paragon' # u can spam my phone for the funnies if u wanted to be mean.
-  Agent.setup.check_square(url)
+  Agent.check_square
 end

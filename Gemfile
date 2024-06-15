@@ -2,4 +2,4 @@ source 'https://rubygems.org'
 
 gem 'faraday'
 gem 'nokogiri'
-gem 'webdrivers'
+gem 'ferrum'
